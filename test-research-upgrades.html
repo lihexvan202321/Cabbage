@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>研究升级系统测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #764ba2;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success {
+            color: #4caf50;
+            font-weight: bold;
+        }
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 研究升级系统测试</h1>
+
+    <div class="test-section">
+        <h2>测试 1: GameState 字段检查</h2>
+        <button onclick="testGameStateFields()">运行测试</button>
+        <div id="test1-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>测试 2: CONFIG.RESEARCH_UPGRADES 配置检查</h2>
+        <button onclick="testUpgradeConfig()">运行测试</button>
+        <div id="test2-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>测试 3: 升级函数存在性检查</h2>
+        <button onclick="testFunctionsExist()">运行测试</button>
+        <div id="test3-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>测试 4: getUpgradeBonuses 功能测试</h2>
+        <button onclick="testGetUpgradeBonuses()">运行测试</button>
+        <div id="test4-result" class="result"></div>
+    </div>
+
+    <script src="game.js"></script>
+    <script>
+        function testGameStateFields() {
+            const resultDiv = document.getElementById('test1-result');
+            try {
+                const hasTechPoints = 'techPoints' in GameState;
+                const hasResearchUpgrades = 'researchUpgrades' in GameState;
+
+                if (hasTechPoints && hasResearchUpgrades) {
+                    resultDiv.innerHTML = '<span class="success">✓ 通过</span><br>' +
+                        `techPoints: ${GameState.techPoints}<br>` +
+                        `researchUpgrades: ${JSON.stringify(GameState.researchUpgrades)}`;
+                } else {
+                    resultDiv.innerHTML = '<span class="error">✗ 失败</span><br>' +
+                        `techPoints 存在: ${hasTechPoints}<br>` +
+                        `researchUpgrades 存在: ${hasResearchUpgrades}`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<span class="error">✗ 错误: ${e.message}</span>`;
+            }
+        }
+
+        function testUpgradeConfig() {
+            const resultDiv = document.getElementById('test2-result');
+            try {
+                const upgrades = CONFIG.RESEARCH_UPGRADES;
+                const count = upgrades.length;
+
+                if (count === 35) {
+                    resultDiv.innerHTML = `<span class="success">✓ 通过 - 找到 ${count} 项升级</span><br>`;
+
+                    // 分类统计
+                    const salesCount = upgrades.filter(u => u.id.startsWith('sales_boost_')).length;
+                    const cabbageCount = upgrades.filter(u => u.id.startsWith('weekly_cabbage_')).length;
+                    const labCount = upgrades.filter(u => u.id.startsWith('lab_efficiency_')).length;
+                    const otherCount = upgrades.filter(u => !u.id.startsWith('sales_boost_') &&
+                                                           !u.id.startsWith('weekly_cabbage_') &&
+                                                           !u.id.startsWith('lab_efficiency_')).length;
+
+                    resultDiv.innerHTML += `销量加成类: ${salesCount} 项<br>` +
+                                          `卷心菜获取类: ${cabbageCount} 项<br>` +
+                                          `实验室效率类: ${labCount} 项<br>` +
+                                          `其他效果类: ${otherCount} 项`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error">✗ 失败 - 预期 35 项，实际 ${count} 项</span>`;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<span class="error">✗ 错误: ${e.message}</span>`;
+            }
+        }
+
+        function testFunctionsExist() {
+            const resultDiv = document.getElementById('test3-result');
+            try {
+                const functions = [
+                    'getUpgradeBonuses',
+                    'renderResearchUpgrades',
+                    'purchaseUpgrade',
+                    'applyUpgradeEffect',
+                    'initResearchUpgradeFilters'
+                ];
+
+                const results = functions.map(fn => ({
+                    name: fn,
+                    exists: typeof window[fn] === 'function'
+                }));
+
+                const allExist = results.every(r => r.exists);
+
+                if (allExist) {
+                    resultDiv.innerHTML = '<span class="success">✓ 所有函数都存在</span><br>';
+                    results.forEach(r => {
+                        resultDiv.innerHTML += `✓ ${r.name}<br>`;
+                    });
+                } else {
+                    resultDiv.innerHTML = '<span class="error">✗ 部分函数缺失</span><br>';
+                    results.forEach(r => {
+                        resultDiv.innerHTML += `${r.exists ? '✓' : '✗'} ${r.name}<br>`;
+                    });
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<span class="error">✗ 错误: ${e.message}</span>`;
+            }
+        }
+
+        function testGetUpgradeBonuses() {
+            const resultDiv = document.getElementById('test4-result');
+            try {
+                // 测试初始状态（无升级）
+                const initialBonuses = getUpgradeBonuses();
+                let output = '<strong>初始状态（无升级）:</strong><br>';
+                output += `salesMultiplier: ${initialBonuses.salesMultiplier}<br>`;
+                output += `weeklyCabbageMultiplier: ${initialBonuses.weeklyCabbageMultiplier}<br>`;
+                output += `experimentCostReduction: ${initialBonuses.experimentCostReduction}<br>`;
+
+                // 模拟购买一个升级
+                GameState.researchUpgrades.push('sales_boost_1');
+                const withUpgrade = getUpgradeBonuses();
+                output += '<br><strong>购买 sales_boost_1 后:</strong><br>';
+                output += `salesMultiplier: ${withUpgrade.salesMultiplier} (预期: 0.05)<br>`;
+
+                // 恢复
+                GameState.researchUpgrades = [];
+
+                if (initialBonuses.salesMultiplier === 0 &&
+                    initialBonuses.weeklyCabbageMultiplier === 1 &&
+                    withUpgrade.salesMultiplier === 0.05) {
+                    resultDiv.innerHTML = '<span class="success">✓ 通过</span><br>' + output;
+                } else {
+                    resultDiv.innerHTML = '<span class="error">✗ 失败</span><br>' + output;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<span class="error">✗ 错误: ${e.message}</span>`;
+            }
+        }
+
+        // 自动运行所有测试
+        window.addEventListener('load', () => {
+            console.log('=== 研究升级系统自动测试 ===');
+            testGameStateFields();
+            testUpgradeConfig();
+            testFunctionsExist();
+            testGetUpgradeBonuses();
+            console.log('=== 测试完成 ===');
+        });
+    </script>
+</body>
+</html>

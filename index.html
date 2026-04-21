@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卷心菜模拟器 - Cabbage Simulator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- 头部区域 -->
+        <header class="game-header">
+            <div class="header-left">
+                <h1>🥬 卷心菜模拟器</h1>
+            </div>
+            <div class="header-center">
+                <div class="progress-info">
+                    <span>第 <strong id="current-day">1</strong> <span id="days-limit"></span> 天</span>
+                    <span>已售: <strong id="sold-count">0</strong> / <span id="sales-target">1,000,000</span></span>
+                    <span id="endless-badge" style="display: none; background: gold; color: #333; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">🌟 无尽模式</span>
+                </div>
+                <!-- 比赛倒计时 -->
+                <div id="event-countdown" style="display: none; margin-top: 8px; padding: 6px 12px; background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); border-radius: 16px; font-size: 0.85rem; font-weight: bold; color: #d35400; text-align: center;">
+                    🏆 距下一场比赛: <span id="event-days-left">--</span> 天
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="sales-progress"></div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button onclick="redeemCode()" class="btn btn-secondary" style="margin-right: 10px;">🎁 兑换码</button>
+                <button onclick="exportSave()" class="btn btn-secondary" style="margin-right: 10px;">💾 导出存档</button>
+                <button onclick="document.getElementById('import-file-input').click()" class="btn btn-secondary" style="margin-right: 10px;">📂 导入存档</button>
+                <input type="file" id="import-file-input" accept=".json,.txt" style="display: none;" onchange="importSave(event)">
+                <a href="https://lihexvan202321.github.io/Cabbage/diagnose.html" target="_blank" class="btn btn-secondary" style="margin-right: 10px; text-decoration: none;">🔧 诊断工具</a>
+                <button id="next-day-btn" class="btn btn-primary">下一天 →</button>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="game-main">
+            <!-- 左侧状态面板 -->
+            <aside class="status-panel">
+                <div class="status-card">
+                    <div class="status-icon">🥬</div>
+                    <div class="status-info">
+                        <div class="status-label">库存</div>
+                        <div class="status-value" id="inventory">100,000</div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon">💰</div>
+                    <div class="status-info">
+                        <div class="status-label">资金</div>
+                        <div class="status-value" id="money">¥5,000</div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon">📈</div>
+                    <div class="status-info">
+                        <div class="status-label">成本价</div>
+                        <div class="status-value" id="cost-price">¥1.5/颗</div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon">⭐</div>
+                    <div class="status-info">
+                        <div class="status-label">声誉</div>
+                        <div class="status-value" id="reputation">50/100</div>
+                        <div class="reputation-bar">
+                            <div class="reputation-fill" id="reputation-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon" id="weather-icon">☀️</div>
+                    <div class="status-info">
+                        <div class="status-label">天气</div>
+                        <div class="status-value" id="weather">晴天</div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="status-icon">📊</div>
+                    <div class="status-info">
+                        <div class="status-label">今日预估销量</div>
+                        <div class="status-value" id="estimated-sales">--</div>
+                    </div>
+                </div>
+
+                <div class="active-effects" id="active-effects">
+                    <h3>活跃效果</h3>
+                    <div id="effects-list"></div>
+                </div>
+            </aside>
+
+            <!-- 右侧主操作区 -->
+            <section class="main-panel">
+                <!-- 标签页导航 -->
+                <nav class="tab-nav">
+                    <button class="tab-btn active" data-tab="sales">销售中心</button>
+                    <button class="tab-btn" data-tab="marketing">市场营销</button>
+                    <button class="tab-btn" data-tab="events">赛事活动</button>
+                    <button class="tab-btn" data-tab="wholesale" id="wholesale-tab-btn" style="display: none;">🏭 批发进货</button>
+                </nav>
+
+                <!-- 销售中心标签页 -->
+                <div class="tab-content active" id="tab-sales">
+                    <!-- 今日结果(置顶显示) -->
+                    <div class="card" id="today-result" style="display: none;">
+                        <h2>今日销售结果</h2>
+                        <div class="result-stats">
+                            <div class="stat-row">
+                                <span>第1次销量:</span>
+                                <strong id="result-quantity-1">0</strong>
+                            </div>
+                            <div class="stat-row">
+                                <span>第2次销量:</span>
+                                <strong id="result-quantity-2">0</strong>
+                            </div>
+                            <div class="stat-row">
+                                <span>总销量:</span>
+                                <strong id="result-quantity">0</strong>
+                            </div>
+                            <div class="stat-row">
+                                <span>总收入:</span>
+                                <strong id="result-revenue">¥0</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 销售中心子导航 -->
+                    <nav class="sub-tab-nav">
+                        <button class="sub-tab-btn active" data-subtab="sales-action">
+                            🛒 进行销售
+                        </button>
+                        <button class="sub-tab-btn" data-subtab="shops">
+                            🏪 店铺管理
+                        </button>
+                        <button class="sub-tab-btn" data-subtab="factory" id="factory-subtab-btn" style="display: none;">
+                            🏭 卷心菜工厂
+                        </button>
+                        <button class="sub-tab-btn" data-subtab="lab" id="lab-subtab-btn" style="display: none;">
+                            🧪 卷心菜实验室
+                        </button>
+                        <button class="sub-tab-btn" data-subtab="research-upgrades" id="research-upgrades-subtab-btn" style="display: none;">
+                            🔬 研究升级
+                        </button>
+                        <button class="sub-tab-btn" data-subtab="academy" id="academy-subtab-btn" style="display: none;">
+                            🎓 卷心菜神学院
+                        </button>
+                    </nav>
+
+                    <!-- 子页面1: 进行销售 -->
+                    <div class="sub-tab-content active" id="subtab-sales-action" style="display: block;">
+                        <div class="card">
+                            <h2>定价策略</h2>
+                            <div class="pricing-section">
+                                <label for="price-slider">单价: ¥<span id="price-display">0</span>/颗 (成本: ¥<span id="cost-price-display">0</span>/颗)</label>
+                                <input type="range" id="price-slider" min="2" max="15" value="3" step="1">
+                                <div class="price-hints">
+                                    <span>低价走量</span>
+                                    <span>正常价格</span>
+                                    <span style="color: var(--error);">⚠️超过最高定价99%违法!</span>
+                                </div>
+                            </div>
+
+                            <div class="promotion-section">
+                                <h3>促销活动</h3>
+                                <div class="promotion-options">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="promo-bogo">
+                                        <span>买一送一 (销量×2, 收入减半)</span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="promo-discount">
+                                        <span>限时折扣 (-20%价格, 销量+60%)</span>
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="promo-bundle">
+                                        <span>捆绑销售 (单价+¥2, 销量+40%)</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button id="start-sales-btn" class="btn btn-success btn-large">开始第1次销售</button>
+                        </div>
+
+                        <!-- 升级系统 -->
+                        <div class="card" id="upgrade-section" style="display: none;">
+                            <h2>🏪 业务升级</h2>
+                            <div id="restaurant-upgrade" style="display: none;">
+                                <div style="background: #fff8e1; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h3 style="margin-bottom: 10px;">卷心菜餐馆升级</h3>
+                                    <p style="margin: 8px 0;">• 当前等级: <strong>普通摊贩</strong></p>
+                                    <p style="margin: 8px 0;">• 升级费用: <strong style="color: var(--error);">¥1,000,000</strong></p>
+                                    <p style="margin: 8px 0;">• 升级后成本价: <strong>¥10/颗</strong></p>
+                                    <p style="margin: 8px 0;">• 升级后最高定价: <strong>¥100/颗</strong></p>
+                                </div>
+                                <button class="btn btn-primary btn-large" onclick="upgradeToRestaurant()">升级为卷心菜餐馆</button>
+                            </div>
+
+                            <div id="factory-upgrade" style="display: none;">
+                                <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h3 style="margin-bottom: 10px;">卷心菜工厂升级</h3>
+                                    <p style="margin: 8px 0;">• 当前等级: <strong>卷心菜餐馆</strong></p>
+                                    <p style="margin: 8px 0;">• 升级费用: <strong style="color: var(--error);">¥10,000,000</strong></p>
+                                    <p style="margin: 8px 0;">• 解锁功能: <strong>罐头生产</strong></p>
+                                </div>
+                                <button class="btn btn-primary btn-large" onclick="upgradeToFactory()">升级为卷心菜工厂</button>
+                            </div>
+
+                            <div id="lab-upgrade" style="display: none;">
+                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h3 style="margin-bottom: 10px;">🧪 卷心菜实验室升级</h3>
+                                    <p style="margin: 8px 0;">• 当前等级: <strong>卷心菜工厂</strong></p>
+                                    <p style="margin: 8px 0;">• 升级费用: <strong style="color: #ffeb3b;">¥100,000,000</strong></p>
+                                    <p style="margin: 8px 0;">• 解锁功能: <strong>实验研究 + 组织培养</strong></p>
+                                </div>
+                                <button class="btn btn-primary btn-large" onclick="upgradeToLab()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">升级为卷心菜实验室</button>
+                            </div>
+                            
+                            <div id="academy-unlock" style="display: none;">
+                                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h3 style="margin-bottom: 10px;">🎓 卷心菜神学院解锁</h3>
+                                    <p style="margin: 8px 0;">• 前置条件: <strong>已解锁实验室</strong></p>
+                                    <p style="margin: 8px 0;">• 解锁费用: <strong style="color: #ffeb3b;">¥10,000,000,000</strong></p>
+                                    <p style="margin: 8px 0;">• 解锁功能: <strong>献祭卷心菜获得神佑点，兑换强力物品</strong></p>
+                                </div>
+                                <button class="btn btn-primary btn-large" onclick="unlockAcademyFromUpgrade()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none;">解锁卷心菜神学院</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子页面2: 卷心菜工厂 -->
+                    <div class="sub-tab-content" id="subtab-factory" style="display: none;">
+                        <!-- 罐头生产控制 -->
+                        <div class="card" id="canned-production-section" style="display: none;">
+                            <h2>🥫 罐头生产线(自动售出)</h2>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 15px;">
+                                每日自动投入卷心菜生产罐头并售出,获得稳定收益
+                            </p>
+                            
+                            <div style="margin-bottom: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                                <h3 style="margin-bottom: 10px;">每日投入设置</h3>
+                                <div class="pricing-section">
+                                    <label for="daily-input-slider">每日投入: <span id="daily-input-display">1000</span> 颗</label>
+                                    <input type="range" id="daily-input-slider" min="100" max="50000" value="1000" step="100" oninput="updateDailyInput(this.value)">
+                                    <div class="price-hints">
+                                        <span>最少100颗</span>
+                                        <span>最多50000颗</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom: 15px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
+                                <h3 style="margin-bottom: 10px;">罐头规格</h3>
+                                <div class="pricing-section">
+                                    <label for="canned-slider">每个罐头含: <span id="canned-cabbages-display">1</span> 颗卷心菜</label>
+                                    <input type="range" id="canned-slider" min="0.1" max="10" value="1" step="0.1" oninput="updateCannedProduction(this.value)">
+                                    <div class="price-hints">
+                                        <span>最少0.1颗</span>
+                                        <span>标准1颗</span>
+                                        <span>最多10颗</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="canned-preview" style="padding: 15px; background: #fff3e0; border-radius: 8px;">
+                                <h3 style="margin-bottom: 10px;">预计收益</h3>
+                                <!-- 动态更新 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子页面3: 卷心菜实验室 -->
+                    <div class="sub-tab-content" id="subtab-lab" style="display: none;">
+                        <!-- 实验室生产控制 -->
+                        <div class="card" id="lab-production-section" style="display: none;">
+                            <h2>🧪 卷心菜实验室</h2>
+                            
+                            <div style="margin-bottom: 25px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                                <h3 style="margin-bottom: 10px;">🔬 实验研究</h3>
+                                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 10px;">
+                                    投入卷心菜和资金进行基因改良实验，获得科技点用于购买升级
+                                </p>
+                                <div style="margin-bottom: 10px; padding: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 5px; font-size: 0.9rem; color: white; font-weight: bold;">
+                                    💎 当前科技点: <span id="tech-points-display">0</span>
+                                </div>
+                                <div style="margin-bottom: 10px; padding: 8px; background: #fff3e0; border-radius: 5px; font-size: 0.9rem;">
+                                    <span id="experiment-level-display">实验等级: 0 (销量+0.0%)</span>
+                                </div>
+                                <div class="pricing-section">
+                                    <label for="experiment-slider">每次实验投入: <span id="experiment-amount-display">1000</span> 颗</label>
+                                    <input type="range" id="experiment-slider" min="1000" max="100000" value="1000" step="1000" oninput="updateExperimentAmount(this.value)">
+                                    <div class="price-hints">
+                                        <span>最少1000颗</span>
+                                        <span>最多100000颗</span>
+                                    </div>
+                                </div>
+                                <p style="font-size: 0.85em; color: #666; margin-top: 8px;">
+                                    💰 消耗: 每1000颗卷心菜 + ¥100,000 → 获得 1 点科技点
+                                </p>
+                                <button class="btn btn-primary" onclick="executeExperiment()" style="margin-top: 10px; width: 100%;">🔬 开始实验研究</button>
+                            </div>
+
+                            <div style="padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                                <h3 style="margin-bottom: 10px;">🌱 组织培养</h3>
+                                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 10px;">
+                                    消耗卷心菜和资金,通过组织培养获得大量卷心菜<br>
+                                    <strong>公式:</strong> 消耗a颗卷心菜 + a×10元 → 获得a×100颗卷心菜
+                                </p>
+                                <div style="margin-bottom: 10px; padding: 8px; background: white; border-radius: 5px; font-size: 0.9rem;">
+                                    <span id="culture-cooldown-display">✅ 未使用过: 可以立即使用</span>
+                                </div>
+                                <div class="pricing-section">
+                                    <label for="culture-slider">培养数量: <span id="culture-amount-display">1000</span> 单位</label>
+                                    <input type="range" id="culture-slider" min="1000" max="100000" value="1000" step="1000" oninput="updateCultureAmount(this.value)">
+                                    <div class="price-hints">
+                                        <span>最少1000单位</span>
+                                        <span>最多100000单位</span>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 5px; font-size: 0.9rem;">
+                                    <p>预计消耗: <strong id="culture-cost-cabbage">1000</strong> 颗卷心菜 + <strong id="culture-cost-money">¥10,000</strong></p>
+                                    <p>预计获得: <strong id="culture-gain">100,000</strong> 颗卷心菜</p>
+                                </div>
+                                <button class="btn btn-success" onclick="executeCulture()" style="margin-top: 10px; width: 100%;">开始组织培养</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子页面4: 店铺管理 -->
+                    <div class="sub-tab-content" id="subtab-shops" style="display: none;">
+                        <div class="card">
+                            <h2>连锁店扩张</h2>
+                            <div class="shops-list" id="shops-list">
+                                <!-- 动态生成店铺列表 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子页面5：研究升级 -->
+                    <div class="sub-tab-content" id="subtab-research-upgrades" style="display: none;">
+                        <div class="card">
+                            <h2>🔬 研究升级中心</h2>
+                            <p style="margin-bottom: 20px;">
+                                💎 当前科技点: <strong id="upgrade-tech-points" style="color: #667eea; font-size: 1.2em;">0</strong>
+                            </p>
+                            
+                            <!-- 升级分类筛选器 -->
+                            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button class="btn btn-small filter-btn active" data-filter="all">全部</button>
+                                <button class="btn btn-small filter-btn" data-filter="sales">销量加成</button>
+                                <button class="btn btn-small filter-btn" data-filter="cabbage">卷心菜获取</button>
+                                <button class="btn btn-small filter-btn" data-filter="lab">实验室效率</button>
+                                <button class="btn btn-small filter-btn" data-filter="other">其他效果</button>
+                            </div>
+                            
+                            <!-- 升级列表容器 -->
+                            <div id="upgrades-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+                                <!-- 动态生成升级卡片 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 子页面6：卷心菜神学院 -->
+                    <div class="sub-tab-content" id="subtab-academy" style="display: none;">
+                        <div class="card">
+                            <h2>🎓 卷心菜神学院</h2>
+                            
+                            <!-- 未解锁状态 -->
+                            <div id="academy-locked" style="text-align: center; padding: 40px;">
+                                <div style="font-size: 4rem; margin-bottom: 20px;">🔒</div>
+                                <h3>神学院尚未解锁</h3>
+                                <p style="margin: 20px 0;">投入 1000 亿资金解锁神学院，获得神圣的力量</p>
+                                <button class="btn btn-primary btn-large" onclick="unlockAcademy()">
+                                    🔓 解锁神学院 (¥100,000,000,000)
+                                </button>
+                            </div>
+                            
+                            <!-- 已解锁状态 -->
+                            <div id="academy-unlocked" style="display: none;">
+                                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                                    <div style="font-size: 1.5em; font-weight: bold;">
+                                        ✨ 当前神佑点: <span id="divine-points-display">0</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- 献祭区域 -->
+                                <div style="margin-bottom: 30px; padding: 20px; background: #fff5f5; border-radius: 8px; border: 2px solid #f5576c;">
+                                    <h3 style="color: #f5576c; margin-bottom: 15px;">⚡ 献祭卷心菜</h3>
+                                    <div class="pricing-section">
+                                        <label for="sacrifice-slider">献祭数量: <span id="sacrifice-amount-display">10000</span> 颗</label>
+                                        <input type="range" id="sacrifice-slider" min="10000" max="1000000" value="10000" step="10000" oninput="updateSacrificeAmount(this.value)">
+                                        <div class="price-hints">
+                                            <span>最少10000颗</span>
+                                            <span>最多1000000颗</span>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                                        💫 每献祭 10000 颗卷心菜 → 获得 1 点神佑点
+                                    </p>
+                                    <button class="btn btn-primary" onclick="sacrificeCabbage()" style="margin-top: 15px; width: 100%; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none;">
+                                        ⚡ 开始献祭
+                                    </button>
+                                </div>
+                                
+                                <!-- 兑换商店 -->
+                                <div style="padding: 20px; background: #f0f8ff; border-radius: 8px; border: 2px solid #4a90e2;">
+                                    <h3 style="color: #4a90e2; margin-bottom: 15px;">🛒 神圣商店</h3>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
+                                        <!-- 兑换卷心菜 -->
+                                        <div class="exchange-card" style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                                            <div style="font-size: 2rem; text-align: center; margin-bottom: 10px;">🥬</div>
+                                            <h4 style="text-align: center; margin-bottom: 10px;">神圣卷心菜</h4>
+                                            <p style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px;">获得 100,000 颗卷心菜</p>
+                                            <p style="text-align: center; font-weight: bold; color: #f5576c; margin-bottom: 10px;">消耗: 5 神佑点</p>
+                                            <button class="btn btn-success" onclick="exchangeCabbage()" style="width: 100%;">兑换</button>
+                                        </div>
+                                        
+                                        <!-- 兑换资金 -->
+                                        <div class="exchange-card" style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                                            <div style="font-size: 2rem; text-align: center; margin-bottom: 10px;">💰</div>
+                                            <h4 style="text-align: center; margin-bottom: 10px;">神圣财富</h4>
+                                            <p style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px;">获得 ¥1,000,000</p>
+                                            <p style="text-align: center; font-weight: bold; color: #f5576c; margin-bottom: 10px;">消耗: 10 神佑点</p>
+                                            <button class="btn btn-success" onclick="exchangeMoney()" style="width: 100%;">兑换</button>
+                                        </div>
+                                        
+                                        <!-- 兑换销量加成 -->
+                                        <div class="exchange-card" style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                                            <div style="font-size: 2rem; text-align: center; margin-bottom: 10px;">📈</div>
+                                            <h4 style="text-align: center; margin-bottom: 10px;">神圣祝福</h4>
+                                            <p style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px;">永久销量 +10%</p>
+                                            <p style="text-align: center; font-weight: bold; color: #f5576c; margin-bottom: 10px;">消耗: 20 神佑点</p>
+                                            <button class="btn btn-success" onclick="exchangeSalesBonus()" style="width: 100%;">兑换</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 市场营销标签页 -->
+                <div class="tab-content" id="tab-marketing">
+                    <div class="card">
+                        <h2>广告渠道</h2>
+                        <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                            <button class="btn btn-success" onclick="buyAllMarketing()" style="flex: 1;">
+                                🛒 一键购买（从低到高）
+                            </button>
+                        </div>
+                        <div class="marketing-grid" id="marketing-grid">
+                            <!-- 动态生成营销选项 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 赛事活动标签页 -->
+                <div class="tab-content" id="tab-events">
+                    <div class="card">
+                        <h2>当前赛事</h2>
+                        <div id="current-event">
+                            <p class="no-event">今天没有赛事活动</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>赛事日历</h2>
+                        <div class="event-calendar">
+                            <div class="calendar-item">
+                                <span class="day">第15天</span>
+                                <span class="name">品质大赛</span>
+                                <span class="status" id="event-15">待进行</span>
+                            </div>
+                            <div class="calendar-item">
+                                <span class="day">第30天</span>
+                                <span class="name">创意料理大赛</span>
+                                <span class="status" id="event-30">待进行</span>
+                            </div>
+                            <div class="calendar-item">
+                                <span class="day">第45天</span>
+                                <span class="name">品质大赛</span>
+                                <span class="status" id="event-45">待进行</span>
+                            </div>
+                            <div class="calendar-item">
+                                <span class="day">第60天</span>
+                                <span class="name">创意料理大赛</span>
+                                <span class="status" id="event-60">待进行</span>
+                            </div>
+                            <div class="calendar-item">
+                                <span class="day">第75天</span>
+                                <span class="name">品质大赛</span>
+                                <span class="status" id="event-75">待进行</span>
+                            </div>
+                            <div class="calendar-item">
+                                <span class="day">第90天</span>
+                                <span class="name">销售冠军赛</span>
+                                <span class="status" id="event-90">最终评比</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 无尽模式手动举办比赛 -->
+                    <div id="host-event-section" style="display: none; margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white;">
+                        <h3 style="margin-bottom: 15px;">🎯 举办自定义比赛</h3>
+                        <p style="margin-bottom: 15px;">在无尽模式中，你可以随时举办自己的比赛！</p>
+                        <button class="btn btn-primary" onclick="hostCustomEvent()" style="background: white; color: #667eea; border: none;">
+                            🎯 举办比赛
+                        </button>
+                    </div>
+                    
+                    <!-- 自定义比赛状态显示 -->
+                    <div id="custom-event-status" style="display: none; margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 8px; color: white;">
+                        <h3 style="margin-bottom: 15px;">🏆 比赛进行中</h3>
+                        <div id="custom-event-details">
+                            <!-- 动态填充比赛详情 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 批发进货标签页 (无尽模式专属) -->
+                <div class="tab-content" id="tab-wholesale">
+                    <div class="card">
+                        <h2>🏭 卷心菜批发中心</h2>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px;">无尽模式专属进货渠道</p>
+
+                        <div style="background: var(--background); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <h3 style="margin-bottom: 10px;">批发信息</h3>
+                            <p>• 批发价格: <strong style="color: var(--error);">¥10/颗</strong></p>
+                            <p>• 每日限额: <strong id="wholesale-daily-limit">100,000 颗</strong></p>
+                            <p>• 今日已购: <strong id="wholesale-today-purchase">0 颗</strong></p>
+                            <p>• 今日剩余: <strong id="wholesale-remaining">100,000 颗</strong></p>
+                        </div>
+
+                        <div style="background: var(--background); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <h3 style="margin-bottom: 10px;">⚠️ 经营风险提示</h3>
+                            <p style="color: var(--error);">• 库存为0时,连续 <strong>${CONFIG.STOCKOUT_LIMIT} 天</strong> 缺货将导致资金链断裂!</p>
+                            <p style="color: var(--error);">• 资金低于 <strong>¥-100,000</strong> 将导致破产!</p>
+                            <p style="margin-top: 8px;">• 当前连续缺货: <strong id="stockout-days-display">0 天</strong></p>
+                        </div>
+
+                        <button class="btn btn-primary btn-large" onclick="purchaseWholesale()">🛒 批发购买卷心菜</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部日志区 -->
+        <footer class="game-log">
+            <h3>游戏日志</h3>
+            <div class="log-entries" id="log-entries">
+                <div class="log-entry neutral">游戏开始! 你是一名卷心菜农民,需要在90天内售出100,000颗卷心菜。</div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 客户互动弹窗 -->
+    <div class="modal" id="customer-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="customer-title">客户来访</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="customer-body">
+                <!-- 动态生成客户信息 -->
+            </div>
+            <div class="modal-footer" id="customer-footer">
+                <!-- 动态生成操作按钮 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 赛事弹窗 -->
+    <div class="modal" id="event-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="event-modal-title">赛事通知</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" id="event-modal-body">
+                <!-- 动态生成赛事信息 -->
+            </div>
+            <div class="modal-footer" id="event-modal-footer">
+                <!-- 动态生成操作按钮 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏结束弹窗 -->
+    <div class="modal" id="game-over-modal" style="display: none;">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2 id="game-over-title">游戏结束</h2>
+            </div>
+            <div class="modal-body" id="game-over-body">
+                <!-- 动态生成结果信息 -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="restart-btn">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js?v=33"></script>
+</body>
+</html>
