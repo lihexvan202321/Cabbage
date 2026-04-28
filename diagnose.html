@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏诊断</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .error { color: red; background: #ffe0e0; padding: 10px; margin: 10px 0; border-left: 4px solid red; }
+        .success { color: green; background: #e0ffe0; padding: 10px; margin: 10px 0; border-left: 4px solid green; }
+        .info { color: blue; background: #e0e0ff; padding: 10px; margin: 10px 0; border-left: 4px solid blue; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🥬 模拟器模拟器 - 诊断工具</h1>
+
+    <div id="output"></div>
+
+    <h2>手动测试</h2>
+    <button onclick="testGameState()">测试 GameState</button>
+    <button onclick="testSales()">测试销售功能</button>
+    <button onclick="checkConsole()">检查控制台</button>
+    <button onclick="openGame()">打开游戏</button>
+
+    <script src="game.js?v=2"></script>
+    <script>
+        const output = document.getElementById('output');
+
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            output.appendChild(div);
+        }
+
+        // 自动运行诊断
+        window.onload = function() {
+            log('<h3>开始自动诊断...</h3>', 'info');
+
+            try {
+                // 检查基本对象
+                if (typeof GameState === 'undefined') {
+                    log('❌ 严重错误: GameState 未定义! game.js 可能加载失败', 'error');
+                    return;
+                }
+                log('✅ GameState 对象已加载', 'success');
+
+                // 检查新添加的字段
+                if (typeof GameState.costPrice === 'undefined') {
+                    log('❌ 错误: GameState.costPrice 未定义', 'error');
+                } else {
+                    log(`✅ costPrice = ${GameState.costPrice}`, 'success');
+                }
+
+                if (typeof GameState.todaySales.session1 === 'undefined') {
+                    log('❌ 错误: todaySales.session1 未定义', 'error');
+                } else {
+                    log('✅ todaySales.session1 结构正确', 'success');
+                }
+
+                if (typeof GameState.salesTimer === 'undefined') {
+                    log('❌ 错误: salesTimer 未定义', 'error');
+                } else {
+                    log('✅ salesTimer 结构正确', 'success');
+                }
+
+                // 检查函数
+                const requiredFunctions = [
+                    'initGame', 'executeSales', 'nextDay', 'endGameByAuthority',
+                    'startSalesTimer', 'calculateEstimatedSales'
+                ];
+
+                requiredFunctions.forEach(func => {
+                    if (typeof window[func] === 'function') {
+                        log(`✅ 函数 ${func}() 存在`, 'success');
+                    } else {
+                        log(`❌ 函数 ${func}() 不存在!`, 'error');
+                    }
+                });
+
+                // 检查CONFIG
+                if (CONFIG.BASE_PRICE !== 3) {
+                    log(`⚠️ 警告: BASE_PRICE = ${CONFIG.BASE_PRICE}, 应该是 3`, 'error');
+                } else {
+                    log('✅ BASE_PRICE = 3 (正确)', 'success');
+                }
+
+                if (CONFIG.COST_PRICE !== 1.5) {
+                    log(`⚠️ 警告: COST_PRICE = ${CONFIG.COST_PRICE}, 应该是 1.5`, 'error');
+                } else {
+                    log('✅ COST_PRICE = 1.5 (正确)', 'success');
+                }
+
+                log('<h3>诊断完成!</h3>', 'info');
+                log('如果看到红色错误,请截图发给我。如果没有错误但仍然无法游戏,请打开游戏页面并按F12查看控制台。', 'info');
+
+            } catch (e) {
+                log(`❌ 诊断过程出错: ${e.message}<br>${e.stack}`, 'error');
+            }
+        };
+
+        function testGameState() {
+            console.log('GameState:', GameState);
+            alert('GameState 已输出到控制台,请按F12查看');
+        }
+
+        function testSales() {
+            try {
+                resetGameState();
+                console.log('重置后的状态:', GameState);
+                const estimated = calculateEstimatedSales();
+                console.log('预估销量:', estimated);
+                alert(`测试完成! 预估销量: ${estimated}\n请查看控制台`);
+            } catch (e) {
+                alert(`测试失败: ${e.message}`);
+                console.error(e);
+            }
+        }
+
+        function checkConsole() {
+            alert('请按F12打开开发者工具,查看Console标签页是否有红色错误信息');
+            console.log('当前GameState:', GameState);
+            console.log('当前CONFIG:', CONFIG);
+        }
+
+        function openGame() {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

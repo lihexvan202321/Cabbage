@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏测试</title>
+</head>
+<body>
+    <h1>模拟器模拟器 - 测试页面</h1>
+    <div id="test-results"></div>
+
+    <script src="game.js?v=2"></script>
+    <script>
+        const results = document.getElementById('test-results');
+        let testOutput = '';
+
+        function addTest(message, passed) {
+            testOutput += `<p style="color: ${passed ? 'green' : 'red'}">${passed ? '✓' : '✗'} ${message}</p>`;
+            results.innerHTML = testOutput;
+        }
+
+        // 测试1: GameState是否存在
+        addTest('GameState对象存在', typeof GameState !== 'undefined');
+
+        // 测试2: CONFIG是否存在
+        addTest('CONFIG对象存在', typeof CONFIG !== 'undefined');
+
+        // 测试3: 检查GameState的todaySales结构
+        if (typeof GameState.todaySales !== 'undefined') {
+            addTest('todaySales.session1存在', typeof GameState.todaySales.session1 !== 'undefined');
+            addTest('todaySales.session2存在', typeof GameState.todaySales.session2 !== 'undefined');
+            addTest('todaySales.currentSession存在', typeof GameState.todaySales.currentSession !== 'undefined');
+        } else {
+            addTest('todaySales存在', false);
+        }
+
+        // 测试4: 检查关键函数
+        addTest('initGame函数存在', typeof initGame === 'function');
+        addTest('executeSales函数存在', typeof executeSales === 'function');
+        addTest('nextDay函数存在', typeof nextDay === 'function');
+        addTest('endGameByAuthority函数存在', typeof endGameByAuthority === 'function');
+
+        // 测试5: 检查配置值
+        addTest(`BASE_PRICE = ${CONFIG.BASE_PRICE} (应该是3)`, CONFIG.BASE_PRICE === 3);
+        addTest(`COST_PRICE = ${CONFIG.COST_PRICE} (应该是1.5)`, CONFIG.COST_PRICE === 1.5);
+        addTest(`SALES_SESSIONS_PER_DAY = ${CONFIG.SALES_SESSIONS_PER_DAY} (应该是2)`, CONFIG.SALES_SESSIONS_PER_DAY === 2);
+        addTest(`SALES_WAIT_TIME = ${CONFIG.SALES_WAIT_TIME} (应该是10)`, CONFIG.SALES_WAIT_TIME === 10);
+
+        // 测试6: 计算功能
+        if (typeof calculateEstimatedSales === 'function') {
+            try {
+                const estimated = calculateEstimatedSales();
+                addTest(`calculateEstimatedSales() 返回: ${estimated}`, typeof estimated === 'number');
+            } catch (e) {
+                addTest(`calculateEstimatedSales() 出错: ${e.message}`, false);
+            }
+        }
+
+        addTest('<br><strong>测试完成!如果所有测试都通过,请打开浏览器控制台(F12)查看是否有运行时错误。</strong>', true);
+    </script>
+</body>
+</html>
